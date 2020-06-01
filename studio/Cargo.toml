@@ -1,0 +1,5 @@
+[package]
+name = "studio"
+version = "0.1.0"
+authors = ["minerva", "JustMagic", "Defcon42"]
+edition = "2018"
