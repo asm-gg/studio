@@ -1,0 +1,11 @@
+[package]
+name = "libstudio_file_ldr"
+version = "0.1.0"
+authors = ["minerva", "JustMagic", "Defcon42"]
+edition = "2018"
+
+[dependencies]
+async-trait = "0.1.31"
+async-std = "1.6.0"
+serde = { version = "1.0.111", features = ["derive"] }
+toml = "0.5.6"
