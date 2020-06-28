@@ -1,8 +1,7 @@
 use crate::file::FileHandle;
 use core::ops::Range;
-use pelite::{PeFile, Wrap};
+use pelite::{PeFile, Wrap, Result};
 
-type Result<T> = std::result::Result<T, pelite::Error>;
 
 fn rva_to_offset(pe: &PeFile, rva: u32) -> Result<usize> {
     match pe {
@@ -17,17 +16,44 @@ fn rva_to_offset(pe: &PeFile, rva: u32) -> Result<usize> {
     }
 }
 
+async fn dump_exports<'a>(pe: &PeFile<'a>) -> Result<Vec<Export<'a>>> {
+    let mut res = Vec::new();
+    match pe.exports() {
+        Ok(exports) => {
+            let by = exports.by()?;
+
+            // TODO: exports by ordinal, get rid of the unwrap
+            for result in by.iter_names() {
+                if let (Ok(name), Ok(pelite::pe32::exports::Export::Symbol(addr))) = result {
+                    res.push(Export{
+                        name: name.to_str().unwrap(),
+                        addr: Address::new(*addr, pe)?
+                    });
+                }
+            }
+            Ok(vec![])
+        }
+        Err(pelite::Error::Null) => Ok(res),
+        Err(e) => Err(e),
+    }
+}
+
 pub struct Section<'a> {
-    name: &'a str,
-    bytes: &'a [u8],
-    virtual_range: Range<u32>,
-    executable: bool,
-    writeable: bool,
+    pub name: &'a str,
+    pub bytes: &'a [u8],
+    pub virtual_range: Range<u32>,
+    pub executable: bool,
+    pub  writeable: bool,
 }
 
 pub struct Address {
     pub offset: usize,
     pub rva: u32,
+}
+
+pub struct Export<'a> {
+    pub name: &'a str,
+    pub addr: Address,
 }
 
 pub struct Pe<'a> {
@@ -36,6 +62,7 @@ pub struct Pe<'a> {
     pub sections: Vec<Section<'a>>,
 
     pub entry: Address,
+    pub exports: Vec<Export<'a>>
 }
 
 impl Address {
@@ -75,6 +102,7 @@ impl<'a> Pe<'a> {
             entry: Address::new(entry, &pe)?,
             headers: &file.data[..headers_size as usize],
             sections: vec![],
+            exports: dump_exports(&pe).await?
         };
 
         for section in pe.section_headers() {
